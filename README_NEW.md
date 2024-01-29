@@ -18,6 +18,13 @@
     cd pyannote_whisper_fold
     pip install -r requirements.txt
 
+    1.4 声纹模型注册token
+    在https://huggingface.co/settings/tokens中注册申请一个token
+    运行命令
+    huggingface-cli login
+    输入申请的token
+
+
 2. 推理代码
     语音识别推理： demo_whisper.py
     声纹识别推理： demo_pyannote.py
