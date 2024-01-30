@@ -3,13 +3,13 @@ step 1. Install environment for pytorch training
 ```
 conda create --name whisper_pyannote python=3.8.5
 conda activate whisper_pyannote
+pip install yt_dlp
 ```
 
 <!-- conda install ffmpeg #在自己虚拟环境下用conda安装 # sudo apt update && sudo apt install ffmpeg
 
 pip install setuptools-rust
 
-pip install yt_dlp
 pip install git+https://github.com/facebookresearch/demucs#egg=demucs
 pip install openai tiktoken
 pip3 install torch torchvision torchaudio
@@ -101,4 +101,7 @@ conda install ffmpeg
 sudo apt update && sudo apt install ffmpeg
 ```
 
+```
+pip install git+https://github.com/facebookresearch/demucs#egg=demucs
+```
 
