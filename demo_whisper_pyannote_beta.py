@@ -24,19 +24,24 @@ def parse_args():
     parser.add_argument('--is_resample_by_ffmpeg', type=str2bool, default='False')
     parser.add_argument('--ffmpeg_hz', type=int)
     parser.add_argument('--yt_url_list', nargs='+')
+    parser.add_argument('--w2t_type', type=str)
     args = parser.parse_args()
     return args
 
-def process_audio(file_path, pipeline, model, is_merge, output_dir):
+def process_audio(file_path, pipeline_voice, transcriber, w2t_type, is_merge, output_dir):
     # print(f"===={file_path}=======")
     t0 = time.time()
-    diarization_result = pipeline(file_path)
-    # asr_result, info = model.transcribe(file_path, beam_size=1, word_timestamps=False,vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
-    asr_result, info = model.transcribe(file_path, initial_prompt="这是一段会议记录", beam_size=1, word_timestamps=True, \
-                                        vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+    diarization_result = pipeline_voice(file_path)
+    if w2t_type in ["guillaumekln/faster-whisper-large-v2"]:
+        # asr_result, info = model.transcribe(file_path, beam_size=1, word_timestamps=False,vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+        asr_result, info = transcriber(file_path, initial_prompt="这是一段会议记录", beam_size=1, word_timestamps=True, \
+                                            vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+    elif w2t_type in ["BELLE-2/Belle-whisper-large-v2-zh", "BELLE-2/Belle-distilwhisper-large-v2-zh"]:
+        asr_result = transcriber(file_path)
     # alignment_model, metadata = whisperx.load_align_model(language_code=info.language, device="cuda")
     # result_aligned = whisperx.align(asr_result, alignment_model, metadata, file_path, "cuda")
     # word_ts = result_aligned["segments"]
+    import pdb;pdb.set_trace()
     t1 = time.time()
     final_result = diarize_text(asr_result, diarization_result, is_merge = is_merge)
     t2 = time.time()
@@ -71,16 +76,31 @@ def main():
     is_resample_by_ffmpeg = args.is_resample_by_ffmpeg
     ffmpeg_hz = args.ffmpeg_hz
     yt_url_list = args.yt_url_list
-    import pdb;pdb.set_trace()
+    w2t_type = args.w2t_type
     if not os.path.exists(wave_dir): os.makedirs(wave_dir)
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
     print("加载声纹模型...")
-    pipeline = Pipeline.from_pretrained(
+    pipeline_voice = Pipeline.from_pretrained(
     "pyannote/speaker-diarization-3.1")
-    pipeline.to(torch.device("cuda"))
-    print("加载whisper语音模型...")
-    model = WhisperModel("guillaumekln/faster-whisper-large-v2", device="cuda", compute_type="float16")
+    pipeline_voice.to(torch.device("cuda"))
+
+    if w2t_type in ["guillaumekln/faster-whisper-large-v2"]:
+        print("加载whisper语音模型...")
+        model = WhisperModel(w2t_type, device="cuda", compute_type="float16")
+        transcriber = model.transcribe
+    elif w2t_type in ["BELLE-2/Belle-whisper-large-v2-zh", "BELLE-2/Belle-distilwhisper-large-v2-zh"]:
+        from transformers import pipeline
+        transcriber = pipeline(
+            "automatic-speech-recognition", 
+            model=w2t_type
+        )
+        transcriber.model.config.forced_decoder_ids = (
+            transcriber.tokenizer.get_decoder_prompt_ids(
+                language="zh", 
+                task="transcribe"
+            )
+        )
 
     if is_download_wav:
         # 01 download video
@@ -132,7 +152,7 @@ def main():
     # with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
     #     executor.map(process_audio, wav_files)
     for wav_file in wav_files:
-        process_audio(wav_file, pipeline, model, is_merge, output_dir)
+        process_audio(wav_file, pipeline_voice, transcriber, w2t_type, is_merge, output_dir)
     print('处理完成！')
 
 if __name__ == '__main__':
@@ -146,6 +166,7 @@ pc python demo_whisper_pyannote_beta.py \
     --is_download_wav True \
     --is_resample_by_ffmpeg False \
     --ffmpeg_hz 6000 \
+    --w2t_type BELLE-2/Belle-whisper-large-v2-zh \
     --yt_url_list \
     https://www.youtube.com/watch?v=dn8Bs1eXQ8o \
     https://www.youtube.com/watch?v=Hi0Fp_nZSZ0 \
