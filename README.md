@@ -9,9 +9,16 @@
   - ffmpeg_hz: 设定重新采样的指定频率
   - w2t_type: 音频转文本模型类型
   ```
+      --w2t_type Systran/faster-whisper-large-v2
       --w2t_type guillaumekln/faster-whisper-large-v2
       --w2t_type BELLE-2/Belle-whisper-large-v2-zh
       --w2t_type BELLE-2/Belle-distilwhisper-large-v2-zh
+  ```
+  - compute_type: 计算精度类型
+  ```
+  float16
+  int8_float16
+  int8
   ```
   - yt_url_list: 带下载的音频或视频url
 ```
@@ -20,14 +27,13 @@ pc python demo_whisper_pyannote_beta.py \
     --wave_dir ./test_16000/demo/ \
     --output_dir ./test_16000/out_results/ \
     --is_merge False \
-    --is_download_wav True \
+    --is_download_wav False \
     --is_resample_by_ffmpeg False \
-    --w2t_type BELLE-2/Belle-distilwhisper-large-v2-zh \
+    --w2t_type Systran/faster-whisper-large-v2 \
     --ffmpeg_hz 16000 \
+    --compute_type float16 \
     --yt_url_list \
     https://www.youtube.com/watch?v=Hi0Fp_nZSZ0 \
-
-
     https://www.youtube.com/watch?v=dn8Bs1eXQ8o \
     https://www.youtube.com/watch?v=jTo0Kdvz-0E
 

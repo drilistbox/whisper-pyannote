@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--ffmpeg_hz', type=int)
     parser.add_argument('--yt_url_list', nargs='+')
     parser.add_argument('--w2t_type', type=str)
+    parser.add_argument('--compute_type', type=str)
     args = parser.parse_args()
     return args
 
@@ -32,16 +33,21 @@ def process_audio(file_path, pipeline_voice, transcriber, w2t_type, is_merge, ou
     # print(f"===={file_path}=======")
     t0 = time.time()
     diarization_result = pipeline_voice(file_path)
-    if w2t_type in ["guillaumekln/faster-whisper-large-v2"]:
+    if w2t_type in ["guillaumekln/faster-whisper-large-v2", "Systran/faster-whisper-large-v2"]:
         # asr_result, info = model.transcribe(file_path, beam_size=1, word_timestamps=False,vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
-        asr_result, info = transcriber(file_path, initial_prompt="这是一段会议记录", beam_size=1, word_timestamps=True, \
-                                            vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+        # asr_result, info = transcriber(file_path, initial_prompt="这是一段会议记录", beam_size=1, word_timestamps=True, \
+        #                                     vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+        asr_result, info = transcriber(file_path, beam_size=1, language="zh", \
+                                            vad_filter=False, vad_parameters=dict(min_silence_duration_ms=500))
     elif w2t_type in ["BELLE-2/Belle-whisper-large-v2-zh", "BELLE-2/Belle-distilwhisper-large-v2-zh"]:
-        asr_result = transcriber(file_path)
+        # asr_result = transcriber(file_path, vad_filter=True)
+        asr_result, info = transcriber(file_path, beam_size=1, language="zh",
+                                        vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
+
     # alignment_model, metadata = whisperx.load_align_model(language_code=info.language, device="cuda")
     # result_aligned = whisperx.align(asr_result, alignment_model, metadata, file_path, "cuda")
     # word_ts = result_aligned["segments"]
-    import pdb;pdb.set_trace()
+
     t1 = time.time()
     final_result = diarize_text(asr_result, diarization_result, is_merge = is_merge)
     t2 = time.time()
@@ -77,6 +83,7 @@ def main():
     ffmpeg_hz = args.ffmpeg_hz
     yt_url_list = args.yt_url_list
     w2t_type = args.w2t_type
+    compute_type = args.compute_type
     if not os.path.exists(wave_dir): os.makedirs(wave_dir)
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
@@ -85,22 +92,37 @@ def main():
     "pyannote/speaker-diarization-3.1")
     pipeline_voice.to(torch.device("cuda"))
 
-    if w2t_type in ["guillaumekln/faster-whisper-large-v2"]:
-        print("加载whisper语音模型...")
-        model = WhisperModel(w2t_type, device="cuda", compute_type="float16")
+    if w2t_type in ["guillaumekln/faster-whisper-large-v2", "Systran/faster-whisper-large-v2"]:
+        print("加载{}语音模型...".format(w2t_type))
+        model = WhisperModel(w2t_type, device="cuda", compute_type=compute_type)
         transcriber = model.transcribe
     elif w2t_type in ["BELLE-2/Belle-whisper-large-v2-zh", "BELLE-2/Belle-distilwhisper-large-v2-zh"]:
-        from transformers import pipeline
-        transcriber = pipeline(
-            "automatic-speech-recognition", 
-            model=w2t_type
-        )
-        transcriber.model.config.forced_decoder_ids = (
-            transcriber.tokenizer.get_decoder_prompt_ids(
-                language="zh", 
-                task="transcribe"
-            )
-        )
+        print("加载{}语音模型...".format(w2t_type))
+        if w2t_type == "BELLE-2/Belle-whisper-large-v2-zh":
+            model_path = "./models/BELLE-2/Belle-whisper-large-v2-zh-ct2_model"
+        elif w2t_type == "BELLE-2/Belle-distilwhisper-large-v2-zh":
+            model_path = "./models/BELLE-2/Belle-distilwhisper-large-v2-zh-ct2_model"
+        model = WhisperModel(model_path, device="cuda", compute_type=compute_type, num_workers=1,
+                            local_files_only=True)
+        transcriber = model.transcribe
+
+        # # 预热
+        # _, _ = model.transcribe("dataset/test.wav", beam_size=5)
+        # # 语音识别
+        # segments, info = model.transcribe(args.audio_path, beam_size=args.beam_size, language=args.language,
+        #                                 vad_filter=args.vad_filter)
+
+        # # # # # from transformers import pipeline
+        # # # # # transcriber = pipeline(
+        # # # # #     "automatic-speech-recognition", 
+        # # # # #     model=w2t_type
+        # # # # # )
+        # # # # # transcriber.model.config.forced_decoder_ids = (
+        # # # # #     transcriber.tokenizer.get_decoder_prompt_ids(
+        # # # # #         language="zh", 
+        # # # # #         task="transcribe"
+        # # # # #     )
+        # # # # # )
 
     if is_download_wav:
         # 01 download video
