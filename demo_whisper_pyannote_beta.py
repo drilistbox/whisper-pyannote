@@ -106,9 +106,6 @@ def main():
                             local_files_only=True)
         transcriber = model.transcribe
 
-        # # 预热
-        for _ in range(20):
-            _, _ = transcriber("test_16000/demo/Hi0Fp_nZSZ0.wav", beam_size=5)
         # # 语音识别
         # segments, info = model.transcribe(args.audio_path, beam_size=args.beam_size, language=args.language,
         #                                 vad_filter=args.vad_filter)
@@ -170,6 +167,10 @@ def main():
 
     # 获取当前目录下所有wav文件名
     wav_files = [os.path.join(wave_dir, file) for file in os.listdir(wave_dir)]
+
+    # # 预热
+    for _ in range(100):
+        _, _ = transcriber("test_16000/demo/Hi0Fp_nZSZ0.wav", beam_size=5)
 
     # 处理每个wav文件
     # with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
