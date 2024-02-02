@@ -101,12 +101,9 @@ conda install ffmpeg
 sudo apt update && sudo apt install ffmpeg
 ```
 
-```
-pip install git+https://github.com/facebookresearch/demucs#egg=demucs
-```
-
 step 6. others
 ```
+pip install git+https://github.com/facebookresearch/demucs#egg=demucs
 pip install --upgrade youtokentome pyannote-audio transformers pandas inflect editdistance
 pip install --upgrade transformers
 ```

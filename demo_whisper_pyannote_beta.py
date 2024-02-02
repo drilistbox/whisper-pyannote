@@ -107,7 +107,8 @@ def main():
         transcriber = model.transcribe
 
         # # 预热
-        # _, _ = model.transcribe("dataset/test.wav", beam_size=5)
+        for _ in range(20):
+            _, _ = transcriber("test_16000/demo/Hi0Fp_nZSZ0.wav", beam_size=5)
         # # 语音识别
         # segments, info = model.transcribe(args.audio_path, beam_size=args.beam_size, language=args.language,
         #                                 vad_filter=args.vad_filter)
